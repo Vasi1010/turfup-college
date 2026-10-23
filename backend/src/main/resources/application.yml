@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: turfup
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/turfup}
+    username: ${DB_USER:turfup}
+    password: ${DB_PASSWORD:turfup}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+management:
+  endpoints:
+    web:
+      # Only the health check, at /health (public: up/down, no details).
+      base-path: /
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+sentry:
+  # Empty DSN = Sentry off. Set SENTRY_DSN to report unhandled errors.
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  send-default-pii: false
+
+turfup:
+  cors:
+    # The frontend calls /api on its own origin (Vite proxy locally, nginx in production), so no other
+    # origin is allowed unless listed here (comma-separated).
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  jobs:
+    # Background jobs (hold expiry, ...). Tests turn this off and call the jobs directly.
+    enabled: true
+  jwt:
+    # HS256 signing key, at least 32 bytes. No default: the app refuses to start without it.
+    secret: ${JWT_SECRET:}
+    ttl: ${JWT_TTL:7d}
+  payments:
+    # simulated (college demo, tests) | razorpay (business). TURFUP_PAYMENTS_MODE overrides.
+    mode: simulated
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  notifications:
+    enabled: false
+  subscriptions:
+    enabled: false
+  tournaments:
+    # Cricket tournaments with live scoring (docs/tournament.md). Off unless switched on for an event.
+    enabled: ${TURFUP_TOURNAMENTS_ENABLED:false}

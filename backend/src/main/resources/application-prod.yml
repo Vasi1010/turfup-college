@@ -1,0 +1,21 @@
+# Production. Every secret comes from the environment with no default, so a missing one stops startup
+# instead of running with a development value. See .env.prod.example.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+server:
+  # Behind Caddy and nginx: trust X-Forwarded-* for the client address and scheme.
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-stacktrace: never
+
+sentry:
+  environment: ${SENTRY_ENVIRONMENT:production}
+
+turfup:
+  jwt:
+    secret: ${JWT_SECRET}

@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: turfup-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-turfup}
+      POSTGRES_USER: ${POSTGRES_USER:-turfup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-turfup}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - turfup-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Throwaway database for the Playwright walkthrough (frontend/e2e). In memory, recreated on every run,
+  # on its own port, so tests never touch the demo data. Only started with `--profile e2e`.
+  postgres-e2e:
+    image: postgres:16
+    container_name: turfup-postgres-e2e
+    profiles: ["e2e"]
+    environment:
+      POSTGRES_DB: turfup_e2e
+      POSTGRES_USER: turfup
+      POSTGRES_PASSWORD: turfup
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turfup -d turfup_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  turfup-pgdata:

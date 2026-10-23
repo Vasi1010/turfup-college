@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/*
+ * "Floodlight": a turf at night. Deep pitch greens with faint mowing stripes, chalk-white text and lines,
+ * one floodlight-lime accent reserved for actions, stadium-signage numerals.
+ */
+@theme {
+  --color-pitch: #08140e;
+  --color-pitch-2: #0d1d15;
+  --color-turf: #13291d;
+  --color-turf-2: #1a3727;
+  --color-turf-3: #234934;
+  --color-chalk: #eef4ea;
+  --color-chalk-dim: #a9bcae;
+  --color-chalk-faint: #6c8574;
+  --color-line: rgb(238 244 234 / 0.14);
+  --color-flood: #d6ff3d;
+  --color-flood-dim: #a9cc2a;
+  --color-flood-ink: #10200a;
+  --color-amber: #ffb547;
+  --color-amber-ink: #2b1a00;
+  --color-red: #ff7a68;
+  --color-ok: #7ae8a8;
+
+  --font-display: "Big Shoulders Display Variable", "Arial Narrow", sans-serif;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-sheet: sheet 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade: fade 200ms ease-out both;
+  --animate-flicker: flicker 1.6s ease-out both;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes sheet {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes flicker {
+    0% { opacity: 0; }
+    8% { opacity: 0.9; }
+    12% { opacity: 0.2; }
+    20% { opacity: 1; }
+    26% { opacity: 0.55; }
+    40%, 100% { opacity: 1; }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-pitch font-sans text-chalk antialiased;
+    min-height: 100dvh;
+    /* Mowing stripes under a floodlight glow. */
+    background-image:
+      radial-gradient(120% 60% at 50% -10%, rgb(214 255 61 / 0.10), transparent 60%),
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 56px, transparent 56px 112px);
+    background-attachment: fixed;
+  }
+
+  /* Film grain, very light, for depth. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-flood);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  input, select, textarea {
+    font: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Numbers that should read like a scoreboard. */
+  .num {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  /* A chalk line divider, slightly irregular like paint on grass. */
+  .chalk-rule {
+    height: 2px;
+    background: repeating-linear-gradient(90deg, rgb(238 244 234 / 0.35) 0 14px, transparent 14px 20px);
+    border-radius: 2px;
+  }
+
+  /* Held slots: amber hatching, so status is visible without relying on colour alone. */
+  .hatch {
+    background-image: repeating-linear-gradient(135deg, rgb(255 181 71 / 0.22) 0 6px, transparent 6px 12px);
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-line bg-pitch-2 px-4 py-3 text-base text-chalk placeholder:text-chalk-faint;
+    @apply focus:border-flood focus:outline-none;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-chalk-dim;
+  }
+}

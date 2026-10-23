@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# Backend
+target/
+
+# Frontend
+node_modules/
+dist/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Production database backups (docker-compose.prod.yml)
+/backups/

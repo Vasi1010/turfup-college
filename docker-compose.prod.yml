@@ -1,0 +1,107 @@
+# Production: one machine running Postgres, the backend, the frontend (nginx) and Caddy (HTTPS).
+#   cp .env.prod.example .env.prod   # fill in every value
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# Only Caddy is reachable from outside; Postgres and the backend stay on the internal network.
+# Sized for a 2 GB server (AWS Lightsail Mumbai, see docs/go-live.md): each service has a memory cap, and the JVM
+# sizes its heap from the backend's cap (MaxRAMPercentage in backend/Dockerfile).
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    mem_limit: 512m
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    mem_limit: 900m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Heap at 60% of the 900m cap leaves room for the JVM's own memory (the same settings run the hosted demo
+      # in 512 MB).
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m
+        -XX:MaxMetaspaceSize=160m -Duser.timezone=Asia/Kolkata
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (openssl rand -base64 48)}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      TURFUP_PAYMENTS_MODE: ${TURFUP_PAYMENTS_MODE:-simulated}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      # Your own phone, registered in the app as a player: promoted to admin on start (see AdminBootstrap).
+      TURFUP_ADMIN_PHONE: ${TURFUP_ADMIN_PHONE:-}
+      # Cricket tournaments with live scoring: true for the event (docs/tournament.md).
+      TURFUP_TOURNAMENTS_ENABLED: ${TURFUP_TOURNAMENTS_ENABLED:-false}
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    restart: unless-stopped
+    mem_limit: 64m
+    depends_on:
+      - backend
+
+  # Daily database backup at 02:30 IST into ./backups on the server (kept BACKUP_KEEP_DAYS days), plus one at
+  # start if the newest is over a day old. Restore with scripts/restore-backup.sh. Lightsail's daily snapshots
+  # copy the whole disk, these files included, off the server.
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 128m
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      TZ: Asia/Kolkata
+    volumes:
+      - ./backups:/backups
+      - ./deploy/backup.sh:/backup.sh:ro
+    entrypoint: ["bash", "/backup.sh"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN, e.g. turfup.in}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  pgdata:
+  caddy-data:
+  caddy-config:
